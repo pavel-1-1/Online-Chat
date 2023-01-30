@@ -9,9 +9,9 @@ public class Send {
     protected Send() {
     }
 
-    protected void outSend(String msg) {
+    protected void outSend(String msg, String name) {
         for (NewClient client : newClients) {
-            client.sendMsg(msg);
+            client.sendMsg(msg, name);
         }
     }
 }
