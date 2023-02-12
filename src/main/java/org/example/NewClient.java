@@ -15,16 +15,21 @@ public class NewClient implements Runnable {
     private Socket socket;
     private PrintWriter out;
     private Send send;
-    private String name;
+    private String name = "null";
+    private String inStr;
+
+    protected Log log;
 
     protected NewClient(Socket socket, Send send) {
         try {
+            this.log = new Log();
             this.socket = socket;
             this.out = new PrintWriter(socket.getOutputStream(), true);
             this.send = send;
         } catch (IOException e) {
             e.printStackTrace();
         }
+        log.recordLog();
     }
 
     @Override
@@ -35,45 +40,50 @@ public class NewClient implements Runnable {
     @Override
     public void run() {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-            System.out.println("new client: " + socket.getPort() + socket.getLocalAddress());
-            out.println("Введите имя: ");
+            System.out.println(log.queueAdd(format.format(new Date()) + " new client: " + socket.getLocalAddress()));
+
             try {
-                while (true) {
+                do {
+                    out.println("Введите имя: max 20 size");
                     name = in.readLine();
-                    if (name != null) {
-                        break;
-                    } else {
-                        out.println("Введите имя: ");
-                    }
-                }
+                } while (name == null || name.trim().isEmpty() || name.length() > 20);
+                Thread.currentThread().setName(name);
+                log.queueAdd(format.format(new Date()) + " client connect: " + socket.getInetAddress() + " " + name);
+
             } catch (SocketException e) {
-                System.out.println("клиент отключился: " + socket.getInetAddress());
+                log.stop();
+                System.out.println(log.queueAdd(format.format(new Date()) + " client close: " + socket.getInetAddress() + " " + name));
                 send.newClients.remove(this);
                 return;
             }
 
-            out.println("Hello " + name);
+            out.println(format.format(new Date()) + " Hello " + name);
             boolean startServer = true;
-            String inStr;
             while (startServer) {
                 try {
                     inStr = in.readLine();
-                    assert inStr != null;
-                    if (inStr.equals("end")) {
+                    if (!(inStr != null && !inStr.trim().isEmpty())) {
+                        continue;
+                    }
+
+                    if (inStr.equals("exit")) {
                         send.newClients.remove(this);
                         send.outSend(inStr, name);
-                        System.out.println("client close: " + socket.getInetAddress() + " " + name);
+                        log.stop();
+                        System.out.println(log.queueAdd(format.format(new Date()) + " client close: " + socket.getInetAddress() + " " + name));
                         break;
                     }
                     send.outSend(inStr, name);
-                    System.out.println(inStr);
+                    System.out.println(log.queueAdd(format.format(new Date()) + " " + name + ": " + inStr));
                 } catch (SocketException e) {
+                    send.outSend(inStr, name);
                     send.newClients.remove(this);
-                    System.out.println("client close: " + socket.getInetAddress() + " " + name);
+                    log.stop();
+                    System.out.println(log.queueAdd(format.format(new Date()) + " client close: " + socket.getInetAddress() + " " + name));
                     startServer = false;
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             send.newClients.remove(this);
             e.printStackTrace();
         }

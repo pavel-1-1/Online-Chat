@@ -19,7 +19,6 @@ public class Main {
         Socket socket;
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
-                send.newClients.forEach(System.out::println);
                 System.out.println(send.newClients.size());
 
                 socket = serverSocket.accept();
@@ -38,7 +37,6 @@ public class Main {
         try {
             Object obj = parser.parse(new FileReader("config.json"));
             jsonObject = (JSONObject) obj;
-            System.out.println(jsonObject);
         } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
